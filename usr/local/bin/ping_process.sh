@@ -5,9 +5,7 @@
 # https://forum.openwrt.org/t/solved-procd-service-doesnt-kill-its-children-processes/29622
 # https://aweirdimagination.net/2020/06/28/kill-child-jobs-on-script-exit/
 # https://linux.die.net/man/1/ash section "grouping commands together"
-set -e
 
-#echo started
 #trap 'echo EXIT $(jobs -p)' EXIT
 #trap 'echo INT $(jobs -p)' INT
 #trap 'echo HUP $(jobs -p)' HUP
@@ -16,20 +14,30 @@ trap 'echo TERM $(jobs -p); kill $(jobs -p)' TERM
 
 DST=$(uci get permanent_ping.permanent_ping.dst)
 INTERVAL=$(uci get permanent_ping.permanent_ping.heartbeat_inteveral) 
-LOG=$(uci get permanent_ping.permanent_ping.log_filename)
+LOG=$(uci -q get permanent_ping.permanent_ping.log_filename)
 TIMESUFFIX=$(uci -q get permanent_ping.permanent_ping.use_timesuffix)
 MAX_TIME_MS=$(uci -q get permanent_ping.permanent_ping.max_time_ms)
-if [[ ! -z "${TIMESUFFIX}" ]]; then
+
+# "set -s" after calls to uci since they return non-zero for optional parameters
+set -e
+
+if [[ ! -z "${TIMESUFFIX}" ]] && [[ ! -z "${LOG}" ]]; then
 	LOG="${LOG}_$(date +%Y-%m-%d_%H%M%S)"
 fi
+
 
 # important to start the pipe in background as the in the foreground
 # traps will not trigger
 # user curly brackets and ";" instead of round brackets to make
 # the "jobs" command able to see the subprocesses
-{ ping ${DST} | \
-  python3 -u /usr/local/bin/ping_process.py --heartbeat-interval ${INTERVAL} | \
-  tee -a "${LOG}"; } &
+if [[ ! -z "${LOG}" ]]; then
+    { ping ${DST} | \
+      python3 -u /usr/local/bin/ping_process.py --heartbeat-interval ${INTERVAL} | \
+      tee -a "${LOG}"; } &
+else
+    { ping ${DST} | \
+      python3 -u /usr/local/bin/ping_process.py --heartbeat-interval ${INTERVAL}; }
+fi
 
 # while loop which returns to the shell once in a while to make the trap execute
 while [ 1 ]; do 
