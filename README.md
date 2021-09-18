@@ -21,6 +21,7 @@ as suffix for the dedicated log file.
 
 ## Start
 
-`service permanent_ping enable`
-`service permanent_ping start`
-
+```
+service permanent_ping enable
+service permanent_ping start
+```
