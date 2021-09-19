@@ -119,6 +119,8 @@ class PingDProcessor:
         ```
         """
 
+        ret_val=0
+
         # store line without newline
         self.last_line = line.rstrip()
 
@@ -140,7 +142,7 @@ class PingDProcessor:
             self.r_checksuffix.match(self.last_line)): # some suffix after roundtrip time
             self._print(f"{self.time_string} {self.last_line}", timestamp=timestamp)
 
-            return 1
+            ret_val=1
         
         # check sequence number increment (wraps to 0 after 65535)
         if self.last_seq != -1 and seq > (self.last_seq + self.allowed_seq_diff) % 65536:
@@ -148,7 +150,7 @@ class PingDProcessor:
             self._print(f"{self.time_string} Missed icmp_seq={self.last_seq}:{seq} ({seq-self.last_seq} packets)",
                         timestamp=timestamp)
 
-            return 1
+            ret_val=1
 
         # heartbeat message if nothing else happend
         if (
@@ -164,7 +166,7 @@ class PingDProcessor:
 
         self.last_seq=seq
 
-        return 0
+        return ret_val
 
     def _print(self, *args, timestamp=None, **kwargs):
         print(*args, **kwargs)
