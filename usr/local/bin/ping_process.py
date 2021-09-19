@@ -138,20 +138,15 @@ class PingDProcessor:
         if (rt_time is None or # no roundtrip time in line
             rt_time > self.max_time_ms or  # too large roundtrip time
             self.r_checksuffix.match(self.last_line)): # some suffix after roundtrip time
-            print(f"{self.time_string} {self.last_line}")
-            
-            # store time when stdout was written for next heartbeat
-            self.last_timestamp = timestamp
+            self._print(f"{self.time_string} {self.last_line}", timestamp=timestamp)
 
             return 1
         
         # check sequence number increment (wraps to 0 after 65535)
         if self.last_seq != -1 and seq > (self.last_seq + self.allowed_seq_diff) % 65536:
             # missed a ping
-            print(f"{self.time_string} Missed icmp_seq={self.last_seq}:{seq} ({seq-self.last_seq} packets)")
-
-            # store time when stdout was written for next heartbeat
-            self.last_timestamp = timestamp
+            self._print(f"{self.time_string} Missed icmp_seq={self.last_seq}:{seq} ({seq-self.last_seq} packets)",
+                        timestamp=timestamp)
 
             return 1
 
@@ -161,16 +156,23 @@ class PingDProcessor:
             and self.heartbeat_interval > 0
             and timestamp - self.last_timestamp > self.heartbeat_interval
         ):
-            print(
+            self._print(
                 f"No anomalies found in the last {self.heartbeat_interval} s. "
                 f"Last input was at {self.time_string}",
                 file=self.heartbeat_pipe,
             )
-            self.last_timestamp = time.time()
 
         self.last_seq=seq
 
         return 0
+
+    def _print(self, *args, timestamp=None, **kwargs):
+        print(*args, **kwargs)
+
+        # store time when stdout was written for next heartbeat
+        if timestamp is None:
+            timestamp=time.time()
+        self.last_timestamp = timestamp
 
     def _get_seq_no(self, line=None):
         """
