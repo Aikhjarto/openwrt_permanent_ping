@@ -147,7 +147,7 @@ class PingDProcessor:
         # check sequence number increment (wraps to 0 after 65535)
         if self.last_seq != -1 and seq > (self.last_seq + self.allowed_seq_diff) % 65536:
             # missed a ping
-            self._print(f"{self.time_string} Missed icmp_seq={self.last_seq}:{seq} ({seq-self.last_seq} packets)",
+            self._print(f"{self.time_string} Missed icmp_seq {self.last_seq+1} to {seq} ({seq-self.last_seq+1} packets)",
                         timestamp=timestamp)
 
             ret_val=1
