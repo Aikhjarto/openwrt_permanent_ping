@@ -1,5 +1,5 @@
 config permanent_ping 'permanent_ping'
-        option heartbeat_interveral 600
+        option heartbeat_interval 600
         option log_filename /tmp/ping
         option use_timesuffix '1'
 	option dst '8.8.8.8'

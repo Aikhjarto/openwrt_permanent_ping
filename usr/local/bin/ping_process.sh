@@ -13,7 +13,7 @@
 trap 'echo TERM $(jobs -p); kill $(jobs -p)' TERM
 
 DST=$(uci get permanent_ping.permanent_ping.dst)
-INTERVAL=$(uci get permanent_ping.permanent_ping.heartbeat_interveral) 
+INTERVAL=$(uci -q get permanent_ping.permanent_ping.heartbeat_interval) 
 LOG=$(uci -q get permanent_ping.permanent_ping.log_filename)
 USE_TIMESUFFIX=$(uci -q get permanent_ping.permanent_ping.use_timesuffix)
 MAX_TIME_MS=$(uci -q get permanent_ping.permanent_ping.max_time_ms)
@@ -33,7 +33,10 @@ if [[ ! -z "${USE_TIMESUFFIX}" ]]; then
 	fi
 fi
 
-ARGS="--heartbeat-interval ${INTERVAL}"
+ARGS=""
+if [[ ! -z ${INTERVAL} ]]; then
+	ARGS="${ARGS} --heartbeat-interval ${INTERVAL}"
+fi
 if [[ ! -z "${RAW_LOG}" ]]; then
 	ARGS="${ARGS} --raw-log-file ${RAW_LOG}"
 fi
