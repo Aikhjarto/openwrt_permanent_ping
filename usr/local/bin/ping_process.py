@@ -13,9 +13,11 @@ When USR1 signal is received, status is printed to stderr.
 """
 
 import argparse
+import contextlib
 from datetime import datetime
 import fileinput
 import re
+import os
 import signal
 import sys
 import time
@@ -49,6 +51,10 @@ class PingDProcessor:
         If icmp_seq differs more more than `allowed_seq_diff` from one line to
         the next, the incident is logged. Default: 1, i.e. every missed ping
         is logged.
+
+    raw_log_buffer : object
+        Buffer object, like opened file, which has a '.write()' function 
+        accepting strings.
     """
 
     def __init__(self,
@@ -56,7 +62,8 @@ class PingDProcessor:
                  datetime_fmt_string=None,
                  heartbeat_interval=0,
                  heartbeat_pipe=None,
-                 allowed_seq_diff=1
+                 allowed_seq_diff=1,
+                 raw_log_buffer=None
                  ):
 
         self.max_time_ms = max_time_ms
@@ -69,6 +76,9 @@ class PingDProcessor:
         self.heartbeat_interval = heartbeat_interval
         self.heartbeat_pipe = heartbeat_pipe
         self.last_timestamp = time.time()
+
+        # raw log
+        self.raw_log_buffer=raw_log_buffer
 
         # last line for status output
         self.last_line = ""
@@ -129,7 +139,14 @@ class PingDProcessor:
             return 0
 
         timestamp=self._set_timestamp()
-
+        if self.raw_log_buffer:
+            if line.startswith('['):
+                self.raw_log_buffer.write(line)
+            else:
+                self.raw_log_buffer.write(f'[{timestamp}] {line}')
+            if hasattr(self.raw_log_buffer,'flush'): 
+                self.raw_log_buffer.flush()
+                
         seq=self._get_seq_no()
         if seq < 0:
             # abort since there is something wrong with this line
@@ -255,6 +272,10 @@ def parse_args():
                         help="If N or more sequence numbers are missing, a corresponding "
                         "line will be printed. Default: %(default)s")
 
+    parser.add_argument("--raw-log-file", type=str, default=None, metavar='f',
+                        help="If given, all ouput of ping is logged to given file"
+                        "If -D was not used for the ping process, the missing timestamp is prepended "
+                        "as time when the line is processed.")
     args = parser.parse_args()
 
     return args
@@ -268,16 +289,23 @@ if __name__ == "__main__":
         raise RuntimeError("This script is supposed to read from a pipe and not from user input. "
                            "Call it with '-h', to see options.")
 
-    p = PingDProcessor(max_time_ms=args.max_time_ms,
-                       datetime_fmt_string=args.fmt,
-                       heartbeat_interval=args.heartbeat_interval,
-                       allowed_seq_diff=args.allowed_seq_diff
-                       )
+    # Hint about nullcontext() to open a file conditionally:
+    # https://stackoverflow.com/questions/12168208/is-it-possible-to-have-an-optional-with-as-statement-in-python
+    if args.raw_log_file:
+        os.makedirs(os.path.dirname(args.raw_log_file), exist_ok=True)
 
-    # callback for USR1
-    signal.signal(signal.SIGUSR1, lambda sig, frame: p.print_status())
+    with (open(args.raw_log_file,'a+') if args.raw_log_file else contextlib.nullcontext()) as f:
+        p = PingDProcessor(max_time_ms=args.max_time_ms,
+                           datetime_fmt_string=args.fmt,
+                           heartbeat_interval=args.heartbeat_interval,
+                           allowed_seq_diff=args.allowed_seq_diff,
+                           raw_log_buffer=f
+                           )
 
-    # read from stdin and pass to PingDProcessor
-    for line in fileinput.input("-"):
-        p.process(line)
+        # callback for USR1
+        signal.signal(signal.SIGUSR1, lambda sig, frame: p.print_status())
+
+        # read from stdin and pass to PingDProcessor
+        for line in fileinput.input("-"):
+            p.process(line)
 

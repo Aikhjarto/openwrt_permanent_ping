@@ -15,16 +15,28 @@ trap 'echo TERM $(jobs -p); kill $(jobs -p)' TERM
 DST=$(uci get permanent_ping.permanent_ping.dst)
 INTERVAL=$(uci get permanent_ping.permanent_ping.heartbeat_inteveral) 
 LOG=$(uci -q get permanent_ping.permanent_ping.log_filename)
-TIMESUFFIX=$(uci -q get permanent_ping.permanent_ping.use_timesuffix)
+USE_TIMESUFFIX=$(uci -q get permanent_ping.permanent_ping.use_timesuffix)
 MAX_TIME_MS=$(uci -q get permanent_ping.permanent_ping.max_time_ms)
+RAW_LOG=$(uci -q get permanent_ping.permanent_ping.raw_log)
 
 # "set -s" after calls to uci since they return non-zero for optional parameters
 set -e
 
-if [[ ! -z "${TIMESUFFIX}" ]] && [[ ! -z "${LOG}" ]]; then
-	LOG="${LOG}_$(date +%Y-%m-%d_%H%M%S)"
+if [[ ! -z "${USE_TIMESUFFIX}" ]]; then
+	SUFFIX=$(date +%Y-%m-%d_%H%M%S)
+	if [[ ! -z "${LOG}" ]]; then
+		LOG="${LOG}"_"${SUFFIX}"
+	fi
+
+	if [[ ! -z "${RAW_LOG}" ]]; then
+		RAW_LOG="${RAW_LOG}_${SUFFIX}"
+	fi
 fi
 
+ARGS="--heartbeat-interval ${INTERVAL}"
+if [[ ! -z "${RAW_LOG}" ]]; then
+	ARGS="${ARGS} --raw-log-file ${RAW_LOG}"
+fi
 
 # important to start the pipe in background as the in the foreground
 # traps will not trigger
@@ -32,11 +44,11 @@ fi
 # the "jobs" command able to see the subprocesses
 if [[ ! -z "${LOG}" ]]; then
     { ping ${DST} | \
-      python3 -u /usr/local/bin/ping_process.py --heartbeat-interval ${INTERVAL} | \
+      python3 -u /usr/local/bin/ping_process.py ${ARGS} | \
       tee -a "${LOG}"; } &
 else
     { ping ${DST} | \
-      python3 -u /usr/local/bin/ping_process.py --heartbeat-interval ${INTERVAL}; }
+      python3 -u /usr/local/bin/ping_process.py ${ARGS}; }
 fi
 
 # while loop which returns to the shell once in a while to make the trap execute
