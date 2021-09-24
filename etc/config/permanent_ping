@@ -1,7 +1,7 @@
 config permanent_ping 'permanent_ping'
-        option heartbeat_interval 600
-        option log_filename /tmp/ping
-        option use_timesuffix '1'
-	option dst '8.8.8.8'
-	option max_time_ms 500
-
+#        option heartbeat_interval 600  
+#        option log_filename /mnt/sda1/persistent/ping_log/ping
+#        option use_timesuffix '1'
+#        option dst '8.8.8.8'
+#        option max_time_ms 500
+#        option raw_log /mnt/sda1/persisten/ping_log/raw
