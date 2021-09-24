@@ -12,7 +12,7 @@
 #trap 'echo QUIT $(jobs -p)' QUIT
 trap 'echo TERM $(jobs -p); kill $(jobs -p)' TERM
 
-DST=$(uci get permanent_ping.permanent_ping.dst)
+DST=$(uci -q get permanent_ping.permanent_ping.dst)
 INTERVAL=$(uci -q get permanent_ping.permanent_ping.heartbeat_interval) 
 LOG=$(uci -q get permanent_ping.permanent_ping.log_filename)
 USE_TIMESUFFIX=$(uci -q get permanent_ping.permanent_ping.use_timesuffix)
@@ -21,6 +21,10 @@ RAW_LOG=$(uci -q get permanent_ping.permanent_ping.raw_log)
 
 # "set -s" after calls to uci since they return non-zero for optional parameters
 set -e
+
+if [[ -z "${DST}" ]]; then
+	DST="8.8.8.8"
+fi
 
 if [[ ! -z "${USE_TIMESUFFIX}" ]]; then
 	SUFFIX=$(date +%Y-%m-%d_%H%M%S)
