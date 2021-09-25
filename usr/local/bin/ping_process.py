@@ -22,6 +22,7 @@ import os
 import signal
 import sys
 import time
+import warnings
 
 
 class PingProcessor:
@@ -290,6 +291,14 @@ if __name__ == "__main__":
     if sys.stdin.isatty():
         raise RuntimeError("This script is supposed to read from a pipe and not from user input. "
                            "Call it with '-h', to see options.")
+
+    LANG=os.getenv('LANG')
+    if LANG and not LANG.startswith('en'):
+        warnings.warn(f'The environment variable LANG={LANG} points language other than English. '
+                      'This might result in non-parseable output, e.g. "Zeit=12.3 ms" instead of '
+                      'time=12.3 ms" in German. '
+                      'Consider setting `LC_ALL=C` to avoid problems with localization.', 
+                      category=RuntimeWarning)
 
     # Hint about nullcontext() to open a file conditionally:
     # https://stackoverflow.com/questions/12168208/is-it-possible-to-have-an-optional-with-as-statement-in-python
