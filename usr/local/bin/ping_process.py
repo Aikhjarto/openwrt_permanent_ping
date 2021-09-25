@@ -8,6 +8,7 @@ ping -D 8.8.8.8 | python3 -u ping_process.py
 To store also raw data:
 ping -D 8.8.8.8 | tee -a raw.log | python3 -u ping_process.py
 
+The '-D' argument to ping is optional, as some versions of ping do not have it.
 When USR1 signal is received, status is printed to stderr.
 
 """
@@ -23,9 +24,9 @@ import sys
 import time
 
 
-class PingDProcessor:
+class PingProcessor:
     """
-    Class to check consecutive lines of the ouput of "ping -D x.x.x.x" for 
+    Class to check consecutive lines of the ouput of `ping x.x.x.x` for 
     anomalies. Anomal lines (too long roundtrip time or missing sequence 
     number, filtered messages, ...) are printed to stdout prefixed with a 
     human readable timestamp.
@@ -255,7 +256,8 @@ def parse_args():
     Setup an run an argument parser
     """
 
-    parser = argparse.ArgumentParser(description="Reads data from 'ping -D' and forwards only interesting lines.",
+    parser = argparse.ArgumentParser(description="Reads data from ping via stdin "
+                                     " and forwards only interesting lines to stdout.",
                                      epilog="Example usage: ping -D x.x.x.x | python3 ping_process.py")
 
     parser.add_argument("--max-time-ms", "-t", type=float, default=500, metavar="T",
@@ -295,17 +297,17 @@ if __name__ == "__main__":
         os.makedirs(os.path.dirname(args.raw_log_file), exist_ok=True)
 
     with (open(args.raw_log_file,'a+') if args.raw_log_file else contextlib.nullcontext()) as f:
-        p = PingDProcessor(max_time_ms=args.max_time_ms,
-                           datetime_fmt_string=args.fmt,
-                           heartbeat_interval=args.heartbeat_interval,
-                           allowed_seq_diff=args.allowed_seq_diff,
-                           raw_log_buffer=f
-                           )
+        p = PingProcessor(max_time_ms=args.max_time_ms,
+                          datetime_fmt_string=args.fmt,
+                          heartbeat_interval=args.heartbeat_interval,
+                          allowed_seq_diff=args.allowed_seq_diff,
+                          raw_log_buffer=f
+                          )
 
         # callback for USR1
         signal.signal(signal.SIGUSR1, lambda sig, frame: p.print_status())
 
-        # read from stdin and pass to PingDProcessor
+        # read from stdin and pass to PingProcessor
         for line in fileinput.input("-"):
             p.process(line)
 
