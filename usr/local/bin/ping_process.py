@@ -21,8 +21,42 @@ import re
 import os
 import signal
 import sys
+from threading import Timer
 import time
 import warnings
+
+
+class Watchdog:
+    """
+    Idea from [1] but with daemo status of timer to not block exit of python interpreter
+    and fixed handler with parameters taken from __init__().
+
+    References
+    ---------
+    .. [1] https://stackoverflow.com/questions/16148735/how-to-implement-a-watchdog-timer-in-python
+    """
+    def __init__(self, timeout, datetime_fmt_string):
+        self.datetime_fmt_string=datetime_fmt_string
+        self.timeout=timeout
+
+        self.timeout = timeout
+        self.timer = Timer(self.timeout, self.handler)
+        self.timer.daemon=True
+        self.timer.start()
+
+    def reset(self):
+        self.timer.cancel()
+        self.timer = Timer(self.timeout, self.handler)
+        self.timer.daemon=True
+        self.timer.start()
+
+    def stop(self):
+        self.timer.cancel()
+
+    def handler(self):
+        time_string=datetime.now().strftime(self.datetime_fmt_string)
+        print(f'{time_string} No result line from ping received for {self.timeout} seconds')
+        self.reset()
 
 
 class PingProcessor:
@@ -42,7 +76,7 @@ class PingProcessor:
 
     heartbeat_interval : float, optional
         If given and greater than zero, a heartbeat message is sent to stdout
-        when nothing was logged to stdout within the last 'heartbeat_intveral'
+        when no anomalies were found within the last 'heartbeat_interval'
         seconds.
 
     heartbeat_pipe : object
@@ -57,6 +91,10 @@ class PingProcessor:
     raw_log_buffer : object
         Buffer object, like opened file, which has a '.write()' function 
         accepting strings.
+
+    timeout_seconds : float
+        When no response from the ping process was received for 
+        `timeout_seconds` seconds, an message is written to stdout.
     """
 
     def __init__(self,
@@ -98,7 +136,6 @@ class PingProcessor:
         self.r_roundtrip=re.compile(r'time=[0-9]+([,.][0-9]*)? ms')
         # check if something is suffiex to 'time={float} ms'
         self.r_checksuffix=re.compile(r'time=[0-9]+([,.][0-9]*)? ms.+')
-
 
     def process(self, line):
         """
@@ -279,6 +316,11 @@ def parse_args():
                         help="If given, all ouput of ping is logged to given file"
                         "If -D was not used for the ping process, the missing timestamp is prepended "
                         "as time when the line is processed.")
+    
+    parser.add_argument("--timeout", type=float, default=60.0,
+                        help="A notification is printed if the ping process did not output anything "
+                        "for `timeout` seconds.")
+
     args = parser.parse_args()
 
     return args
@@ -316,7 +358,11 @@ if __name__ == "__main__":
         # callback for USR1
         signal.signal(signal.SIGUSR1, lambda sig, frame: p.print_status())
 
+        # watchdog in case ping does not send anything for a given time
+        watchdog = Watchdog(args.timeout, args.fmt)
+
         # read from stdin and pass to PingProcessor
         for line in fileinput.input("-"):
             p.process(line)
+            watchdog.reset()
 

@@ -18,6 +18,7 @@ LOG=$(uci -q get permanent_ping.permanent_ping.log_filename)
 USE_TIMESUFFIX=$(uci -q get permanent_ping.permanent_ping.use_timesuffix)
 MAX_TIME_MS=$(uci -q get permanent_ping.permanent_ping.max_time_ms)
 RAW_LOG=$(uci -q get permanent_ping.permanent_ping.raw_log)
+TIMEOUT=$(uci -q get permanent_ping.permanent_ping.timeout)
 
 # "set -s" after calls to uci since they return non-zero for optional parameters
 set -e
@@ -43,6 +44,9 @@ if [[ ! -z ${INTERVAL} ]]; then
 fi
 if [[ ! -z "${RAW_LOG}" ]]; then
 	ARGS="${ARGS} --raw-log-file ${RAW_LOG}"
+fi
+if [[ ! -z ${TIMEOUT} ]]; then
+	ARGS="${ARGS} --timeout ${TIMEOUT}"
 fi
 
 # important to start the pipe in background as the in the foreground

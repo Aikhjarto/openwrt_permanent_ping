@@ -5,3 +5,4 @@ config permanent_ping 'permanent_ping'
 #        option dst '8.8.8.8'
 #        option max_time_ms 500
 #        option raw_log /mnt/sda1/persisten/ping_log/raw
+#        timeout 60

@@ -38,6 +38,7 @@ Supperted parameters are:
 * `raw_log`: If givven, the supplied filename is used to create a file an write all lines from the ping process with a timestamp.
 * `max_time_ms`: Maximum roundtrip time in milliseconds which is considered an not-an-issue.
 * `use_timesuffix`: If not empty, a date-time suffix is append to `log_filename` and `raw_log` is appended to generate a new file each startup.
+* `timeout`: When ping command does not send any line for `timeout` seconds, a message is printed.
 
 Praxis tip: You may want to set the `log_filename` not to RAM, but to a thumbdrive.
 
