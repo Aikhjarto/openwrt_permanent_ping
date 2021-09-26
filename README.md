@@ -42,3 +42,33 @@ Supperted parameters are:
 
 Praxis tip: You may want to set the `log_filename` not to RAM, but to a thumbdrive.
 
+# Other platforms
+`usr/local/bin/ping_process.py` can be used standalone (without the startup and config files for OpenWrt) on any other platform which supports python>3.6.
+
+Usage guide can be printed using `python3 usr/local/bin/ping_process.py -h`
+```
+Reads data from ping via stdin and forwards only interesting lines to stdout.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --max-time-ms T, -t T
+                        Roundtrip times exceeding T will be logged. Default 500
+  --fmt FMT             Format for the human readable timestamp passed to the 'datetime' module. Default: '%Y-%m-%d %H:%M:%S'
+  --heartbeat-interval H
+                        If H is greater than 0 and no output was produced within H seconds, a status message indicating that this script is still alive will be printed.
+  --allowed-seq-diff N  If N or more sequence numbers are missing, a corresponding line will be printed. Default: 1
+  --raw-log-file f      If given, received output of ping is logged to given file. If -D was not used for the ping process, the missing timestamp is prepended as time when the line is
+                        processed.
+  --timeout TIMEOUT     A notification is printed if the ping process did not output anything for `timeout` seconds.
+
+Example usage: 
+
+ping -D 8.8.8.8 | python3 -u ping_process.py
+
+To store to file next to stdout:
+ping -D 8.8.8.8 | python3 -u ping_process.py | tee -a ping.log
+
+The '-D' argument to ping is optional, as some versions of ping do not have it.
+When USR1 signal is received, status is printed to stderr.
+```
+
