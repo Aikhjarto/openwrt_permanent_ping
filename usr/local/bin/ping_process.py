@@ -1,16 +1,5 @@
 """
 Python 3 module to help processing long running pings and report anomalies.
-
-Usage
------
-ping -D 8.8.8.8 | python3 -u ping_process.py
-
-To store also raw data:
-ping -D 8.8.8.8 | tee -a raw.log | python3 -u ping_process.py
-
-The '-D' argument to ping is optional, as some versions of ping do not have it.
-When USR1 signal is received, status is printed to stderr.
-
 """
 
 import argparse
@@ -287,14 +276,27 @@ class PingProcessor:
         print(f'Last line at {self.time_string}: "{self.last_line}"', file=sys.stderr)
 
 
+USAGE="""Example usage: 
+
+ping -D 8.8.8.8 | python3 -u ping_process.py
+
+To store to file next to stdout:
+ping -D 8.8.8.8 | python3 -u ping_process.py | tee -a ping.log
+
+The '-D' argument to ping is optional, as some versions of ping do not have it.
+When USR1 signal is received, status is printed to stderr.
+"""
+
+
 def parse_args():
     """
     Setup an run an argument parser
     """
 
     parser = argparse.ArgumentParser(description="Reads data from ping via stdin "
-                                     " and forwards only interesting lines to stdout.",
-                                     epilog="Example usage: ping -D x.x.x.x | python3 ping_process.py")
+                                     "and forwards only interesting lines to stdout.",
+                                     epilog=USAGE,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
 
     parser.add_argument("--max-time-ms", "-t", type=float, default=500, metavar="T",
                         help="Roundtrip times exceeding T will be logged. Default %(default)s")
@@ -303,7 +305,7 @@ def parse_args():
                         help=r"Format for the human readable timestamp passed to the 'datetime' module. "
                         "Default: '%(default)s'")
     parser.add_argument("--heartbeat-interval", type=float, default=0, metavar="H",
-                        help="If H is greater than 0 and no output was produced within H seconds"
+                        help="If H is greater than 0 and no output was produced within H seconds, "
                         "a status message indicating that this script is still alive will be printed." )
 
     parser.add_argument("--allowed-seq-diff", type=int, default=1, metavar="N",
@@ -311,7 +313,7 @@ def parse_args():
                         "line will be printed. Default: %(default)s")
 
     parser.add_argument("--raw-log-file", type=str, default=None, metavar='f',
-                        help="If given, all ouput of ping is logged to given file"
+                        help="If given, received output of ping is logged to given file. "
                         "If -D was not used for the ping process, the missing timestamp is prepended "
                         "as time when the line is processed.")
     
