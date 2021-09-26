@@ -183,8 +183,6 @@ class PingProcessor:
                 self.raw_log_buffer.write(line)
             else:
                 self.raw_log_buffer.write(f'[{timestamp}] {line}')
-            if hasattr(self.raw_log_buffer,'flush'): 
-                self.raw_log_buffer.flush()
                 
         seq=self._get_seq_no()
         if seq < 0:
@@ -347,7 +345,7 @@ if __name__ == "__main__":
     if args.raw_log_file:
         os.makedirs(os.path.dirname(args.raw_log_file), exist_ok=True)
 
-    with (open(args.raw_log_file,'a+') if args.raw_log_file else contextlib.nullcontext()) as f:
+    with (open(args.raw_log_file,'a+', buffering=1) if args.raw_log_file else contextlib.nullcontext()) as f:
         p = PingProcessor(max_time_ms=args.max_time_ms,
                           datetime_fmt_string=args.fmt,
                           heartbeat_interval=args.heartbeat_interval,
