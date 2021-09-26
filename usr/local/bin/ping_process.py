@@ -343,7 +343,12 @@ if __name__ == "__main__":
     # Hint about nullcontext() to open a file conditionally:
     # https://stackoverflow.com/questions/12168208/is-it-possible-to-have-an-optional-with-as-statement-in-python
     if args.raw_log_file:
-        os.makedirs(os.path.dirname(args.raw_log_file), exist_ok=True)
+        # Create folder for raw log if not exist and handle the case when 
+        # dirname was an empty string denoting CWD. 
+        # (makedirs produce FileNotFoundError in case of an empty string)
+        dirname=os.path.dirname(args.raw_log_file)
+        if dirname: 
+            os.makedirs(dirname, exist_ok=True)
 
     with (open(args.raw_log_file,'a+', buffering=1) if args.raw_log_file else contextlib.nullcontext()) as f:
         p = PingProcessor(max_time_ms=args.max_time_ms,
