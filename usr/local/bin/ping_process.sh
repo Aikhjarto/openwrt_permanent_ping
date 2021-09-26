@@ -10,7 +10,7 @@
 #trap 'echo INT $(jobs -p)' INT
 #trap 'echo HUP $(jobs -p)' HUP
 #trap 'echo QUIT $(jobs -p)' QUIT
-trap 'echo TERM $(jobs -p); kill $(jobs -p)' TERM
+trap 'echo ping_process.sh killing subprocesses  $(jobs -p); kill $(jobs -p)' TERM
 
 DST=$(uci -q get permanent_ping.permanent_ping.dst)
 INTERVAL=$(uci -q get permanent_ping.permanent_ping.heartbeat_interval) 
