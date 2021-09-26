@@ -53,13 +53,19 @@ optional arguments:
   -h, --help            show this help message and exit
   --max-time-ms T, -t T
                         Roundtrip times exceeding T will be logged. Default 500
-  --fmt FMT             Format for the human readable timestamp passed to the 'datetime' module. Default: '%Y-%m-%d %H:%M:%S'
+  --fmt FMT             Format for the human readable timestamp passed to the 'datetime'
+                        module. Default: '%Y-%m-%d %H:%M:%S'
   --heartbeat-interval H
-                        If H is greater than 0 and no output was produced within H seconds, a status message indicating that this script is still alive will be printed.
-  --allowed-seq-diff N  If N or more sequence numbers are missing, a corresponding line will be printed. Default: 1
-  --raw-log-file f      If given, received output of ping is logged to given file. If -D was not used for the ping process, the missing timestamp is prepended as time when the line is
-                        processed.
-  --timeout TIMEOUT     A notification is printed if the ping process did not output anything for `timeout` seconds.
+                        If H is greater than 0 and no output was produced within H seconds,
+                        a status message indicating that this script is still alive will be
+                        printed.
+  --allowed-seq-diff N  If N or more sequence numbers are missing, a corresponding line
+                        will be printed. Default: 1
+  --raw-log-file f      If given, received output of ping is logged to given file. If -D
+                        was not used for the ping process, the missing timestamp is
+                        prepended as time when the line is processed.
+  --timeout TIMEOUT     A notification is printed if the ping process did not output
+                        anything for `timeout` seconds.
 
 Example usage: 
 
