@@ -105,6 +105,7 @@ class PingProcessor:
                  ):
 
         self.max_time_ms = max_time_ms
+        self.quiet=quiet
 
         self.datetime_fmt_string = (
             "%Y-%m-%d %H:%M:%S" if datetime_fmt_string is None else datetime_fmt_string
@@ -112,7 +113,7 @@ class PingProcessor:
 
         # heartbeat
         self.heartbeat_interval = heartbeat_interval
-        self.log_pipe = None
+        self.log_pipe = log_pipe
         self.heartbeat_pipe = heartbeat_pipe if heartbeat_pipe else self.log_pipe
         self.last_timestamp = time.time()
 
