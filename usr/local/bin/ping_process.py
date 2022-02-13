@@ -84,6 +84,13 @@ class PingProcessor:
     timeout_seconds : float
         When no response from the ping process was received for 
         `timeout_seconds` seconds, an message is written to stdout.
+
+    log_pipe : object
+        An object with a write(str) method to write anomal lines or errors to.
+        If not given, sys.stdout is used.
+
+    quiet : bool
+        If True, dont log to stdout.
     """
 
     def __init__(self,
@@ -91,6 +98,8 @@ class PingProcessor:
                  datetime_fmt_string=None,
                  heartbeat_interval=0,
                  heartbeat_pipe=None,
+                 log_pipe=None,
+                 quiet=False,
                  allowed_seq_diff=1,
                  raw_log_buffer=None
                  ):
@@ -103,7 +112,8 @@ class PingProcessor:
 
         # heartbeat
         self.heartbeat_interval = heartbeat_interval
-        self.heartbeat_pipe = heartbeat_pipe
+        self.log_pipe = None
+        self.heartbeat_pipe = heartbeat_pipe if heartbeat_pipe else self.log_pipe
         self.last_timestamp = time.time()
 
         # raw log
@@ -183,7 +193,9 @@ class PingProcessor:
         if (rt_time is None or # no roundtrip time in line
             rt_time > self.max_time_ms or  # too large roundtrip time
             self.r_checksuffix.match(self.last_line)): # some suffix after roundtrip time
-            self._print(f"{self.time_string} {self.last_line}", timestamp=timestamp)
+            self._print(f"{self.time_string} {self.last_line}", 
+                        timestamp=timestamp,
+                        file=self.log_pipe)
 
             ret_val=1
         
@@ -193,10 +205,12 @@ class PingProcessor:
             N_missed=seq-(self.last_seq+1)
             if N_missed==1:
                 self._print(f"{self.time_string} Missed icmp_seq {self.last_seq+1}",
-                            timestamp=timestamp)
+                            timestamp=timestamp,
+                            file=self.log_pipe)
             else:
                 self._print(f"{self.time_string} Missed icmp_seq {self.last_seq+1} to {seq-1} ({N_missed} packets)",
-                            timestamp=timestamp)
+                            timestamp=timestamp,
+                            file=self.log_pipe)
 
             ret_val=1
 
@@ -216,8 +230,14 @@ class PingProcessor:
 
         return ret_val
 
-    def _print(self, *args, timestamp=None, **kwargs):
-        print(*args, **kwargs)
+    def _print(self, *args, timestamp=None, file=None, **kwargs):
+        
+        if not self.quiet:
+            print(*args, **kwargs)
+
+        if file and file is not sys.stdout:
+            print(*args, file=file, **kwargs)
+
 
         # store time when stdout was written for next heartbeat
         if timestamp is None:
@@ -276,9 +296,30 @@ class PingProcessor:
         print(f'Last line at {self.time_string}: "{self.last_line}"', file=sys.stderr)
 
 
+def execute(cmd):
+    """
+    Spawn a process and read its stdout line by line while the process is still running.
+
+    https://stackoverflow.com/questions/4417546/constantly-print-subprocess-output-while-process-is-running
+    """
+
+    import subprocess
+
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+    for stdout_line in iter(popen.stdout.readline, ""):
+        yield stdout_line
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
+
+
+
 USAGE="""Example usage: 
 
 ping -D 8.8.8.8 | python3 -u ping_process.py
+or
+python3 -u ping_process.py --destination 8.8.8.8
 
 To store to file next to stdout:
 ping -D 8.8.8.8 | python3 -u ping_process.py | tee -a ping.log
@@ -294,7 +335,8 @@ def parse_args():
     """
 
     parser = argparse.ArgumentParser(description="Reads data from ping via stdin "
-                                     "and forwards only interesting lines to stdout.",
+                                     "and forwards only interesting lines to stdout. "
+                                     "If ping is not piped to stdin, a new ping process is spawned.",
                                      epilog=USAGE,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
 
@@ -304,6 +346,11 @@ def parse_args():
     parser.add_argument("--fmt", type=str, default="%Y-%m-%d %H:%M:%S",
                         help=r"Format for the human readable timestamp passed to the 'datetime' module. "
                         "Default: '%(default)s'")
+
+    parser.add_argument("--heartbeat-file", type=str, default=None,
+                        help="Avoid gobbling --log or stdout with hearthbeat messages by writting them "
+                             "to a dedicated file or discaring them to `/dev/null`")
+
     parser.add_argument("--heartbeat-interval", type=float, default=0, metavar="H",
                         help="If H is greater than 0 and no output was produced within H seconds, "
                         "a status message indicating that this script is still alive will be printed." )
@@ -321,18 +368,49 @@ def parse_args():
                         help="A notification is printed if the ping process did not output anything "
                         "for `timeout` seconds.")
 
+    parser.add_argument('-D', action='store_true', default=False,
+                        help='Use `ping -D` if ping is not piped to stdin.')
+
+    parser.add_argument('--destination', type=str, default=None,
+                        help='If given, start a `ping`-process instead of reading from stdin.')
+
+    parser.add_argument('--log-file', type=str,
+                        help='Instead of stdout, append to the given file.')
+
+    parser.add_argument('--quiet', action='store_true', default=False,
+                        help='Do not write log to stdout. Useful only when --log is used.')
+
     args = parser.parse_args()
 
     return args
+
+
+def _create_dir_for_file(filename):
+    """
+    Create folder for log files if not exist and handle the case when 
+    dirname was an empty string denoting CWD. 
+    (makedirs produce FileNotFoundError in case of an empty string)
+    """
+    if filename:
+        dirname = os.path.dirname(filename)
+        if dirname:
+            os.makedirs(dirname, exist_ok=True)
+
+
+def open_file(filename, *args, **kwargs):
+    """
+    Provides a context even if filename was None or an empty string.
+    """
+    if filename:
+        return open(filename, *args, **kwargs)
+    else:
+        return contextlib.nullcontext()
 
 
 if __name__ == "__main__":
 
     args = parse_args()
 
-    if sys.stdin.isatty():
-        raise RuntimeError("This script is supposed to read from a pipe and not from user input. "
-                           "Call it with '-h', to see options.")
 
     LANG=os.getenv('LANG')
     if LANG and not LANG.startswith('en'):
@@ -342,32 +420,41 @@ if __name__ == "__main__":
                       'Consider setting `LC_ALL=C` to avoid problems with localization.', 
                       category=RuntimeWarning)
 
-    # Hint about nullcontext() to open a file conditionally:
-    # https://stackoverflow.com/questions/12168208/is-it-possible-to-have-an-optional-with-as-statement-in-python
-    if args.raw_log_file:
-        # Create folder for raw log if not exist and handle the case when 
-        # dirname was an empty string denoting CWD. 
-        # (makedirs produce FileNotFoundError in case of an empty string)
-        dirname=os.path.dirname(args.raw_log_file)
-        if dirname: 
-            os.makedirs(dirname, exist_ok=True)
+    # create directories for log files
+    _create_dir_for_file(args.log_file)
+    _create_dir_for_file(args.raw_log_file)
 
-    with (open(args.raw_log_file,'a+', buffering=1) if args.raw_log_file else contextlib.nullcontext()) as f:
-        p = PingProcessor(max_time_ms=args.max_time_ms,
-                          datetime_fmt_string=args.fmt,
-                          heartbeat_interval=args.heartbeat_interval,
-                          allowed_seq_diff=args.allowed_seq_diff,
-                          raw_log_buffer=f
-                          )
+    with open_file(args.heartbeat_file,'a+', buffering=1) as f_heartbeat:
+        with open_file(args.raw_log_file,'a+', buffering=1) as f_raw_log:
+            with open_file(args.log_file,'a+', buffering=1) as f_log:
+                p = PingProcessor(max_time_ms=args.max_time_ms,
+                                  datetime_fmt_string=args.fmt,
+                                  heartbeat_pipe=f_heartbeat,
+                                  heartbeat_interval=args.heartbeat_interval,
+                                  allowed_seq_diff=args.allowed_seq_diff,
+                                  log_pipe=f_log,
+                                  quiet=args.quiet,
+                                  raw_log_buffer=f_raw_log
+                                  )
 
-        # callback for USR1
-        signal.signal(signal.SIGUSR1, lambda sig, frame: p.print_status())
+                # callback for USR1
+                signal.signal(signal.SIGUSR1, lambda sig, frame: p.print_status())
 
-        # watchdog in case ping does not send anything for a given time
-        watchdog = Watchdog(args.timeout, args.fmt)
+                # watchdog in case ping does not send anything for a given time
+                watchdog = Watchdog(args.timeout, args.fmt)
 
-        # read from stdin and pass to PingProcessor
-        for line in fileinput.input("-"):
-            p.process(line)
-            watchdog.reset()
+                if args.destination is not None:
+                    # assemble ping command
+                    cmd = ["ping", args.destination]
+                    if args.D:
+                        cmd.insert(1, '-D')
 
+                    for line in execute(cmd):
+                        p.process(line)
+                        watchdog.reset()
+                else:
+                    # read from stdin and pass to PingProcessor
+                    for line in fileinput.input("-"):
+                        p.process(line)
+                        watchdog.reset()
+            
