@@ -43,4 +43,5 @@ if [[ ! -z "${LOG}" ]]; then
 fi
 
 python3 -u /usr/local/bin/ping_process.py ${ARGS}
+exit $?
 
