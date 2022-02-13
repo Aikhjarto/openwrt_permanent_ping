@@ -47,29 +47,35 @@ Praxis tip: You may want to set the `log_filename` not to RAM, but to a thumbdri
 
 Usage guide can be printed using `python3 usr/local/bin/ping_process.py -h`
 ```
-Reads data from ping via stdin and forwards only interesting lines to stdout.
+usage: ping_process.py [-h] [--max-time-ms T] [--fmt FMT] [--heartbeat-file HEARTBEAT_FILE] [--heartbeat-interval H] [--allowed-seq-diff N] [--raw-log-file f] [--timeout TIMEOUT] [-D]
+                       [--destination DESTINATION] [--log-file LOG_FILE] [--quiet]
+
+Reads data from ping via stdin and forwards only interesting lines to stdout. If ping is not piped to stdin, a new ping process is spawned.
 
 optional arguments:
   -h, --help            show this help message and exit
   --max-time-ms T, -t T
                         Roundtrip times exceeding T will be logged. Default 500
-  --fmt FMT             Format for the human readable timestamp passed to the 'datetime'
-                        module. Default: '%Y-%m-%d %H:%M:%S'
+  --fmt FMT             Format for the human readable timestamp passed to the 'datetime' module. Default: '%Y-%m-%d %H:%M:%S'
+  --heartbeat-file HEARTBEAT_FILE
+                        Avoid gobbling --log or stdout with hearthbeat messages by writting them to a dedicated file or discaring them to `/dev/null`
   --heartbeat-interval H
-                        If H is greater than 0 and no output was produced within H seconds,
-                        a status message indicating that this script is still alive will be
-                        printed.
-  --allowed-seq-diff N  If N or more sequence numbers are missing, a corresponding line
-                        will be printed. Default: 1
-  --raw-log-file f      If given, received output of ping is logged to given file. If -D
-                        was not used for the ping process, the missing timestamp is
-                        prepended as time when the line is processed.
-  --timeout TIMEOUT     A notification is printed if the ping process did not output
-                        anything for `timeout` seconds.
+                        If H is greater than 0 and no output was produced within H seconds, a status message indicating that this script is still alive will be printed.
+  --allowed-seq-diff N  If N or more sequence numbers are missing, a corresponding line will be printed. Default: 1
+  --raw-log-file f      If given, received output of ping is logged to given file. If -D was not used for the ping process, the missing timestamp is prepended as time when the line is
+                        processed.
+  --timeout TIMEOUT     A notification is printed if the ping process did not output anything for `timeout` seconds.
+  -D                    Use `ping -D` if ping is not piped to stdin.
+  --destination DESTINATION
+                        If given, start a `ping`-process instead of reading from stdin.
+  --log-file LOG_FILE   Instead of stdout, append to the given file.
+  --quiet               Do not write log to stdout. Useful only when --log is used.
 
-Example usage: 
+Example usage:
 
 ping -D 8.8.8.8 | python3 -u ping_process.py
+or
+python3 -u ping_process.py --destination 8.8.8.8
 
 To store to file next to stdout:
 ping -D 8.8.8.8 | python3 -u ping_process.py | tee -a ping.log
